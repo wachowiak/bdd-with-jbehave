@@ -1,0 +1,31 @@
+buildscript {
+    repositories {
+        maven { url 'https://repo.spring.io/libs-snapshot' }
+    }
+
+    dependencies {
+        classpath 'org.springframework.boot:spring-boot-gradle-plugin:2.0.1.BUILD-SNAPSHOT'
+    }
+}
+
+apply plugin: 'java'
+apply plugin: 'idea'
+apply plugin: 'org.springframework.boot'
+
+sourceCompatibility = 1.8
+
+version = '1.0'
+jar {
+    manifest {
+        attributes 'Implementation-Title': 'BDD with Spring Boot and jBehave Quickstart'
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    compile group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '1.5.11.RELEASE'
+    testCompile group: 'junit', name: 'junit', version: '4.+'
+}
