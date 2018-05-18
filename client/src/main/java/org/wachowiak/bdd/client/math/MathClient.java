@@ -1,34 +1,38 @@
 package org.wachowiak.bdd.client.math;
 
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
-import org.springframework.web.client.RestTemplate;
-import org.springframework.web.util.UriComponentsBuilder;
+import com.owlike.genson.ext.jaxrs.GensonJsonConverter;
+import org.glassfish.jersey.client.ClientConfig;
 import org.wachowiak.bdd.common.math.Constants;
 
-import java.util.LinkedHashMap;
-
-import static org.hibernate.validator.internal.util.Contracts.assertNotNull;
+import javax.ws.rs.ClientErrorException;
+import javax.ws.rs.RedirectionException;
+import javax.ws.rs.ServerErrorException;
+import javax.ws.rs.client.ClientBuilder;
+import javax.ws.rs.client.WebTarget;
+import javax.ws.rs.core.GenericType;
+import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
+import java.util.Map;
 
 public class MathClient {
 
-    private final String serviceUrl;
-    private final RestTemplate restTemplate;
+    private static final String ENDPOINT_HEALTH = "actuator/health";
+    private static final String FIELD_STATUS = "status";
+
+    private final WebTarget webTarget;
 
     public MathClient(String serviceUrl) {
-        this(serviceUrl, new RestTemplate());
+        this(ClientBuilder.newClient(new ClientConfig().register(GensonJsonConverter.class)).target(serviceUrl));
     }
 
-    public MathClient(String serviceUrl, RestTemplate restTemplate) {
-        this.serviceUrl = serviceUrl;
-        this.restTemplate = restTemplate;
+    MathClient(WebTarget webTarget) {
+        this.webTarget = webTarget;
     }
 
     public String health() {
-        LinkedHashMap<String, String> response = getResponseFor(UriComponentsBuilder.fromHttpUrl(serviceUrl)
-                .pathSegment("actuator", "health").toUriString(), LinkedHashMap.class);
-        return response.get("status");
+        return getResponseFor(ENDPOINT_HEALTH, new GenericType<Map<String, String>>() {
+        })
+                .get(FIELD_STATUS);
     }
 
     public long add(long first, long second) {
@@ -48,20 +52,30 @@ public class MathClient {
     }
 
     private long getResponseFor(String operation, long first, long second) {
-        UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(serviceUrl)
-                .pathSegment(Constants.ENDPOINT_MATH, operation)
+        Response response = webTarget
+                .path(Constants.ENDPOINT_MATH)
+                .path(operation)
                 .queryParam(Constants.PARAM_A, first)
-                .queryParam(Constants.PARAM_B, second);
-
-        return getResponseFor(builder.toUriString(), Long.class);
+                .queryParam(Constants.PARAM_B, second)
+                .request(MediaType.APPLICATION_JSON).get();
+        checkStatus(response);
+        return Long.parseLong(response.readEntity(String.class));
     }
 
-    private <T> T getResponseFor(String uri, Class<T> clazz) {
+    private <T> T getResponseFor(String path, GenericType<T> clazz) {
+        Response response = webTarget.path(path).request(MediaType.APPLICATION_JSON).get();
+        checkStatus(response);
+        return response.readEntity(clazz);
+    }
 
-        return restTemplate.exchange(
-                uri,
-                HttpMethod.GET,
-                new HttpEntity<>(new HttpHeaders()),
-                clazz).getBody();
+    private void checkStatus(Response response) {
+        switch (response.getStatusInfo().getFamily()) {
+            case CLIENT_ERROR:
+                throw new ClientErrorException(response);
+            case SERVER_ERROR:
+                throw new ServerErrorException(response);
+            case REDIRECTION:
+                throw new RedirectionException(response);
+        }
     }
 }

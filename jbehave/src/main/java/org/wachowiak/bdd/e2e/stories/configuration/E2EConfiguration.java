@@ -6,7 +6,6 @@ import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.PropertySource;
 import org.springframework.context.support.PropertySourcesPlaceholderConfigurer;
-import org.springframework.web.client.RestTemplate;
 import org.wachowiak.bdd.client.math.MathClient;
 
 @Configuration
@@ -23,12 +22,7 @@ public class E2EConfiguration {
     private String serverUrl;
 
     @Bean
-    RestTemplate restTemplate(){
-        return new RestTemplate();
-    }
-
-    @Bean
     MathClient mathClient(){
-        return new MathClient(serverUrl, restTemplate());
+        return new MathClient(serverUrl);
     }
 }
